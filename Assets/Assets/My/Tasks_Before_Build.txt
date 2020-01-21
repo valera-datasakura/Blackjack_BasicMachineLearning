@@ -1,0 +1,7 @@
+
+Task List
+
+-PlayerPrefs 추가목록
+ 1. RemoveAll
+ 2. "FirstAccount", 10000
+ 2. "XmlFileEmpty" 
