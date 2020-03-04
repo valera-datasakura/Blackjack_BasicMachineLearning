@@ -55,10 +55,6 @@ public class LobbyController : MonoBehaviour {
         SoundManager.Instance.Play("Effect_Button_General");
         Application.Quit();
     }
-    public void ResetKey()
-    {
-        PlayerPrefs.DeleteAll();
-    }
 
     //______________________________________Info 관련__________________________________________
     public void ShowRule()

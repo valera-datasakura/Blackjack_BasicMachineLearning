@@ -3,21 +3,19 @@ using CardEnums;
 
 public class PlayerHand : Hand {
 
-    int bitChoices;
-
-    GameObject stateUIPrefab;
-    UIPanel stateUIParent;
+    private int bitChoices;
+    private UIPanel stateUIParent;
 
     // 시간차 하이라이트, 상태 표시
-    bool isHighlightTimeAfter = false;
-    float currentHighlightTimeAfter;
-    float totalHighlightTimeAfter;
+    private bool isHighlightTimeAfter = false;
+    private float currentHighlightTimeAfter;
+    private float totalHighlightTimeAfter;
 
     // 서렌더 여부
-    bool isSurrender = false;
-    bool isSplitAce = false;
-    bool isDouble = false;
-    bool isInsurance = false;
+    private bool isSurrender = false;
+    private bool isSplitAce = false;
+    private bool isDouble = false;
+    private bool isInsurance = false;
 
     BettingZone bettingZone;
     
@@ -27,11 +25,10 @@ public class PlayerHand : Hand {
         bettingZone = transform.GetChild(0).GetComponent<BettingZone>();
     }
 
-    public void Init(GameObject statePrefab, UIPanel stateParent, Transform insuranceTrans, string tag)
+    public void Init(UIPanel stateParent, Transform insuranceTrans, string tag)
     {
-        Init(statePrefab, stateParent, tag);
+        Init(stateParent, tag);
 
-        stateUIPrefab = statePrefab;
         stateUIParent = stateParent;
 
         bettingZone.Init(insuranceTrans);
@@ -338,7 +335,7 @@ public class PlayerHand : Hand {
         if (stateUI == null)// 없다면 여기서 바로 만들어주자
         {
             GameObject newObj =
-            (GameObject)Instantiate(stateUIPrefab, GetMyWorldToUIScreen(), Quaternion.identity);
+            (GameObject)Instantiate(statePrefab, GetMyWorldToUIScreen(), Quaternion.identity);
 
             stateUI = newObj.GetComponent<UISprite>();
             stateUI.transform.SetParent(stateUIParent.transform);

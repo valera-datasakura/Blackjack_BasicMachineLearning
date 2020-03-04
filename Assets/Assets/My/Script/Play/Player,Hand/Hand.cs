@@ -6,6 +6,8 @@ using CardEnums;
 
 public class Hand : MonoBehaviour {
 
+    public GameObject statePrefab;
+
     protected List<Card> cards = new List<Card>();
     protected HAND_VALUE value = HAND_VALUE.NOTHING;
     
@@ -181,13 +183,13 @@ public class Hand : MonoBehaviour {
     protected float currentStateUITimeAfter;
     protected float totalStateUITimeAfter;
 
-    public virtual void Init(GameObject statePrefab, UIPanel stateParent, string tag)
+    public virtual void Init(UIPanel stateUIParent, string tag)
     {
         GameObject newObj =
             (GameObject)Instantiate(statePrefab, GetMyWorldToUIScreen(), Quaternion.identity);
 
         stateUI = newObj.GetComponent<UISprite>();
-        stateUI.transform.SetParent(stateParent.transform);
+        stateUI.transform.SetParent(stateUIParent.transform);
         stateUI.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
         stateUI.gameObject.SetActive(false);
 

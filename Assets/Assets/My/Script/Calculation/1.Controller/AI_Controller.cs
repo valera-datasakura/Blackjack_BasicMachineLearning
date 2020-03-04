@@ -7,7 +7,7 @@ public class AI_Controller : MonoBehaviour
 {
     void Update()
     {
-        for (int i = 0; i < 2000; ++i)
+        for (int i = 0; i < 1000; ++i)
         {
             Ready();
 

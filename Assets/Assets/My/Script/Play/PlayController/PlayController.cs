@@ -16,16 +16,11 @@ public enum PLAY_TURN // 변경시 ChangeTurn() 또한 편집해주기
     RESULT,
     CLEAR
 }
-[System.Serializable]
-public struct UI_ACCOUNT
-{
-    public UISprite accountWindow;
-    public UILabel nameLabel;
-    public UILabel accountLabel;
-}
+
 public class PlayController : MonoBehaviour {
 
     public Player player;
+    public Player aiOpponent;
 
     const int minBetting = 10;
 
@@ -58,10 +53,7 @@ public class PlayController : MonoBehaviour {
     public UIPanel insurancePanel;
 
     //-------------------범용UI관련(객체관리)------------------------------
-    // Account UI
-    public UI_ACCOUNT UIAccount;
     // 핸드 상태 UI
-    public GameObject statePrefab;
     public UIPanel stateUIParent;
     //------------------------------------------------------
     
@@ -79,14 +71,14 @@ public class PlayController : MonoBehaviour {
         }
 
         SceneManager.LoadScene(SceneNames.calculate, LoadSceneMode.Additive);
-        //Application.LoadLevelAdditive();
-
+        
         bettingButtonCenterSlider.onCenter = UpdateBettingButtonState;
     }
     void Start()
     {
-        player.Init(UIAccount, handPrefab, statePrefab, stateUIParent);
-        dealer.Init(statePrefab, stateUIParent, "Dealer");
+        player.Init(stateUIParent);
+
+        dealer.Init(stateUIParent,"Dealer");
     }
     void Update()
     {

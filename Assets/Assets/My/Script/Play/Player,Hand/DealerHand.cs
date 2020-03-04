@@ -4,9 +4,9 @@ using CardEnums;
 public class DealerHand : Hand {
 
     //_________________________________CallBack_____________________________
-    public override void Init(GameObject statePrefab, UIPanel stateParent, string _tag)
+    public override void Init(UIPanel stateUIParent, string tag)
     {
-        base.Init(statePrefab, stateParent, _tag);
+        base.Init(stateUIParent, tag);
 
         stateUI.transform.Translate(0f, 0.3f, 0f);
     }

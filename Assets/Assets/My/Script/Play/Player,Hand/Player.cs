@@ -5,21 +5,18 @@ using System.Collections.Generic;
 public class Player : MonoBehaviour {
     
     public Transform insuranceBetTransform;
-    GameObject handPrefab;
-    Account account;
-    List<PlayerHand> hands;
+    public GameObject handPrefab;
 
     //------------UI(범용)------------------
-    UISprite accountWindow;
-    UILabel nameLabel;
-    UILabel accountLabel;
-
-    GameObject stateUIPrefab;
-    UIPanel stateUIParent;
+    public UILabel accountLabel;
     //--------------------------------------
+
+    private UIPanel stateUIParent;
+    private Account account;
+    private List<PlayerHand> hands;
     
-    int currentHandIndex;
-    float splitDistance = 0.7f;
+    private int currentHandIndex;
+    private float splitDistance = 0.7f;
 
     //____________________________________Initialize____________________________________________________
     public void Awake()
@@ -28,17 +25,11 @@ public class Player : MonoBehaviour {
 
         account = GetComponent<Account>();
     }
-    public void Init(UI_ACCOUNT _account, GameObject _handPf, GameObject _statePf, UIPanel _stateParent)
+    public void Init(UIPanel stateUIParent)
     {
         account.AmountOfAccount = 1000;
 
-        accountWindow = _account.accountWindow;
-        nameLabel = _account.nameLabel;
-        accountLabel = _account.accountLabel;
-
-        handPrefab = _handPf;
-        stateUIPrefab = _statePf;
-        stateUIParent = _stateParent;
+        this.stateUIParent = stateUIParent;
 
         AddHand();// 기본 핸드 하나
 
@@ -129,7 +120,7 @@ public class Player : MonoBehaviour {
         newObj.transform.SetParent(this.transform);
         PlayerHand newHand = newObj.GetComponent<PlayerHand>();
 
-        newHand.Init(stateUIPrefab, stateUIParent, insuranceBetTransform, transform.tag);
+        newHand.Init(stateUIParent, insuranceBetTransform, transform.tag);
         hands.Add(newHand);
         SetHandsPosition();
 
