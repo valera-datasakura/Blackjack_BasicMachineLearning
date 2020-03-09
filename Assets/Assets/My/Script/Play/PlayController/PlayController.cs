@@ -2,10 +2,10 @@
 using System.Collections;
 using CardEnums;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public enum PLAY_TURN // 변경시 ChangeTurn() 또한 편집해주기
 {
-    SETTING=0,
     START,
     BETTING,
     SET_CARD,
@@ -22,18 +22,14 @@ public class PlayController : MonoBehaviour {
     public Player player;
     public Player aiOpponent;
 
-    const int minBetting = 10;
 
-    //------------------기본-----------------------------
-    public GameObject handPrefab;
-    
-    //---------------------------------------------------
     public Deck deck;
     public DiscardDeck dDeck;
     public DealerHand dealer;
 
-    protected PLAY_TURN turn=PLAY_TURN.SETTING;
-    protected bool canChoose = false;
+    private const int minBetting = 10;
+    private PLAY_TURN turn;
+    private bool canChoose = false;
 
     //------------------개인UI관련(통합관리)--------------------------------
     // 배팅 UI
@@ -54,9 +50,13 @@ public class PlayController : MonoBehaviour {
 
     //-------------------범용UI관련(객체관리)------------------------------
     // 핸드 상태 UI
-    public UIPanel stateUIParent;
+    public UIPanel playerStateUIParent;
+    public UIPanel aiOpponentStateUIParent;
     //------------------------------------------------------
-    
+
+    private int ccn = 0;
+    private int holeCcn = 0;
+
     void Awake()
     {
         okButtonTween = okButton.GetComponent<TweenColor>();
@@ -71,21 +71,52 @@ public class PlayController : MonoBehaviour {
         }
 
         SceneManager.LoadScene(SceneNames.calculate, LoadSceneMode.Additive);
+        SceneManager.LoadScene(SceneNames.simulate, LoadSceneMode.Additive);
         
         bettingButtonCenterSlider.onCenter = UpdateBettingButtonState;
     }
     void Start()
     {
-        player.Init(stateUIParent);
+        player.Init(playerStateUIParent);
+        aiOpponent.Init(aiOpponentStateUIParent);
 
-        dealer.Init(stateUIParent,"Dealer");
+        dealer.Init(playerStateUIParent,"Dealer");
+
+        bettingPanel.gameObject.SetActive(false);
+
+        NextTurn(PLAY_TURN.START);
     }
     void Update()
     {
-        UpdateTurn();    
-    }
-    void OnApplicationQuit()
-    {   
+        switch (turn)
+        {
+            case PLAY_TURN.CHOICE:
+
+                if (canChoose)
+                {
+                    if (Input.GetKeyDown(KeyCode.H))
+                    {
+                        StartCoroutine(CoHit());
+                    }
+                    if (Input.GetKeyDown(KeyCode.T))
+                    {
+                        StartCoroutine(CoStand());
+                    }
+                    if (Input.GetKeyDown(KeyCode.D))
+                    {
+                        StartCoroutine(CoDoubleDown());
+                    }
+                    if (Input.GetKeyDown(KeyCode.S))
+                    {
+                        StartCoroutine(CoSplit());
+                    }
+                    if (Input.GetKeyDown(KeyCode.U))
+                    {
+                        StartCoroutine(CoSurrender());
+                    }
+                }
+                break;
+        }
     }
 
     void NextTurn(PLAY_TURN nextTurn)
@@ -94,10 +125,8 @@ public class PlayController : MonoBehaviour {
 
         switch (turn)
         {
-            case PLAY_TURN.SETTING:
-                break;
             case PLAY_TURN.START:
-                StartCoroutine(FirstStart());
+                StartCoroutine(IE_FirstStart());
                 break;
             case PLAY_TURN.BETTING:
                 StartCoroutine(Betting());
@@ -125,10 +154,12 @@ public class PlayController : MonoBehaviour {
                 break;
         }
     }
-    
-    IEnumerator FirstStart()
+
+    IEnumerator IE_FirstStart()
     {
-        if(player.Budget >= minBetting)
+        yield return new WaitForSeconds(1.5f);
+
+        if (player.Budget >= minBetting && aiOpponent.Budget >= minBetting)
         {
             NextTurn(PLAY_TURN.BETTING);
         }
@@ -136,12 +167,14 @@ public class PlayController : MonoBehaviour {
         {
             Exit();
         }
-
-        yield return null;
     }
     IEnumerator Betting()
     {
-        yield return new WaitForSeconds(0.2f + 2f * SoundManager.Instance.Betting() / 3f);
+        yield return new WaitForSeconds(0.2f+2f * SoundManager.Instance.Betting() / 3f);
+
+        OpponentBet();
+
+        yield return new WaitForSeconds(0.2f);
 
         bettingPanel.gameObject.SetActive(true);
 
@@ -151,23 +184,27 @@ public class PlayController : MonoBehaviour {
     {
         bettingPanel.gameObject.SetActive(false);
 
-        player.GetOpenCard(deck.Pop(), delay: 0.5f);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.9f);
+        GetPlayerCard(aiOpponent, false);
+        yield return new WaitForSeconds(0.5f);
 
-        dealer.GetHiddenCard(deck.Pop(), delay: 0.5f);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.9f);
+        GetPlayerCard(player, false);
+        yield return new WaitForSeconds(0.5f);
 
-        player.GetOpenCard(deck.Pop(), delay: 0.5f);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.9f);
+        GetDealerCard(true, false);
+        yield return new WaitForSeconds(0.6f);
 
-        dealer.GetOpenCard(deck.Pop(), delay: 0.5f);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.8f);
+        GetPlayerCard(aiOpponent, false);
+        yield return new WaitForSeconds(0.5f);
 
-        if(dealer.IsInsuranceHand && player.EnoughBetToInsurance)
+        GetPlayerCard(player, false);
+        yield return new WaitForSeconds(0.5f);
+
+        GetDealerCard(false, false);
+        yield return new WaitForSeconds(0.6f);
+
+
+        if (dealer.IsInsuranceHand &&
+            (aiOpponent.EnoughBetToInsurance || player.EnoughBetToInsurance))
         {
             NextTurn(PLAY_TURN.INSURANCE);
         }
@@ -178,23 +215,32 @@ public class PlayController : MonoBehaviour {
     }
     IEnumerator Insurance()
     {
-        yield return new WaitForSeconds(SoundManager.Instance.Insurance());
+        yield return new WaitForSeconds(SoundManager.Instance.Insurance()+0.5f);
+
+        if (aiOpponent.EnoughBetToInsurance && GetBestChoice()==ChoiceKind.Insurance)
+        {
+            aiOpponent.Budget -= aiOpponent.GetCurrentHand.AmountOfBetting / 2;
+            aiOpponent.GetCurrentHand.InsuranceBetting();
+            SoundManager.Instance.Play("Effect_Chip");
+
+            yield return new WaitForSeconds(0.5f);
+        }
 
         insurancePanel.gameObject.SetActive(true);
     }
     IEnumerator IsBlackjack()
     {
         player.GetCurrentHand.DisplayStateUI(0.0f);
+        aiOpponent.GetCurrentHand.DisplayStateUI(0.0f);
         dealer.DisplayStateUI(0.0f);
 
         yield return new WaitForSeconds(0.2f);
 
-        if (player.IsBlackjack)
+        if ((player.IsBlackjack || aiOpponent.IsBlackjack) && !dealer.IsBlackjack)
         {
             yield return new WaitForSeconds(SoundManager.Instance.P_Blackjack());
-            NextTurn(PLAY_TURN.DEALER_GET);
         }
-        else if (dealer.IsBlackjack)
+        if ((player.IsBlackjack && aiOpponent.IsBlackjack) || dealer.IsBlackjack)
         {
             NextTurn(PLAY_TURN.DEALER_GET);
         }
@@ -206,12 +252,181 @@ public class PlayController : MonoBehaviour {
     IEnumerator Choice()
     {
         insurancePanel.gameObject.SetActive(false);
-        player.GetCurrentHand.Highlight();
 
-        canChoose = true;
+        // AI turn
+        do
+        {
+            aiOpponent.GetCurrentHand.Highlight();
+
+            yield return new WaitForSeconds(0.75f);
+
+            bool isLoop = true;
+            do
+            {
+                switch (GetBestChoice())
+                {
+                    case ChoiceKind.Hit:
+
+                        GetPlayerCard(aiOpponent, true);
+
+                        yield return new WaitForSeconds(1.0f);
+
+                        isLoop = (!player.GetCurrentHand.IsStopChoice && PreferHit());
+
+                        break;
+
+                    case ChoiceKind.Stand:
+
+                        isLoop = false;
+
+                        break;
+
+                    case ChoiceKind.DoubleDown:
+
+                        aiOpponent.DoubleDown();
+
+                        yield return new WaitForSeconds(SoundManager.Instance.Play("Effect_Chip"));
+                       
+                        GetPlayerCard(aiOpponent, true);
+
+                        yield return new WaitForSeconds(1.2f);
+
+
+                        isLoop = false;
+
+                        break;
+
+                    case ChoiceKind.Split:
+
+                        aiOpponent.GetCurrentHand.DisHighlight();
+
+                        PlayerHand secondHand = aiOpponent.Split();
+                        SoundManager.Instance.Play("Effect_Chip");
+                        yield return new WaitForSeconds(0.5f);
+                        GetPlayerCard(aiOpponent, false);
+                        yield return new WaitForSeconds(0.7f);
+
+                        Card secondCard = deck.Pop();
+                        ccn += secondCard.CountingScore;
+                        secondCard.Move(secondHand.transform, 0.5f);
+                        secondCard.Rotate(0.5f);
+                        secondHand.Push(secondCard, false);
+                        SoundManager.Instance.Play("Effect_Card");
+                        yield return new WaitForSeconds(1.2f);
+
+                        break;
+
+                    case ChoiceKind.Surrender:
+
+                        aiOpponent.Surrender();
+                        aiOpponent.GetCurrentHand.DisplayStateUI(0.5f);
+                        yield return new WaitForSeconds(0.4f);
+
+                        isLoop = false;
+
+                        break;
+
+                    case ChoiceKind.NotDetermined:
+                        
+                        Debug.LogError("Stand is base choice, so whatever else should be determined in this stage");
+                        isLoop = false;
+                        break;
+                }
+
+            } while (isLoop && !aiOpponent.GetCurrentHand.IsStopChoice);
+
+        } while (aiOpponent.UpdateAndCheckAllPossibleHand());
+
+
+        // player turn
+        if (!player.GetCurrentHand.IsStopChoice)
+        {
+            player.GetCurrentHand.Highlight();
+
+            canChoose = true;
+        }
+        else
+        {
+            NextTurn(PLAY_TURN.DEALER_GET);
+        }
 
         yield return null;
     }
+
+    bool PreferHit()
+    {
+        int player_Idx = FirstHandValue_To_SituationKind.Convert(player.GetCurrentHand.Value, player.GetCurrentHand.IsSoft);
+
+        //  1.
+        float standWinningRate = (DB_Manager.Instance.GetSingle(ccn, dealer.GetIndexOfOpen, player_Idx).rate_Stand + 1f) / 2f;
+
+        //  2.
+        float hitBurstRate = 0;
+        if ((int)player.GetCurrentHand.Value >= 12 && player.GetCurrentHand.IsHard)
+        {
+            hitBurstRate = DB_Manager.Instance.GetBurst(ccn, (int)player.GetCurrentHand.Value).rate;
+        }
+
+        float average =
+           ((1f - standWinningRate) * (1f + AI_Controller.HIT_WEIGHT)
+            + (1f - hitBurstRate) * (1f - AI_Controller.HIT_WEIGHT))
+            / 2f;
+
+        //  3.
+        return (average > AI_Controller.HIT_PREFERENCE);
+    }
+    ChoiceKind GetBestChoice()
+    {
+        Dictionary<ChoiceKind, float> choiceWinningRates = new Dictionary<ChoiceKind, float>();
+      
+        Situation_Info info = DB_Manager.Instance.GetSingle(ccn, dealer.GetIndexOfOpen, aiOpponent.GetCurrentHand.GetSituationIndex);
+
+        if (aiOpponent.GetCurrentHand.CanHit)
+        {
+            choiceWinningRates.Add(ChoiceKind.Hit, info.rate_Hit);
+        }
+        if (aiOpponent.GetCurrentHand.CanStand)
+        {
+            choiceWinningRates.Add(ChoiceKind.Stand, info.rate_Stand);
+        }
+        if (aiOpponent.GetCurrentHand.CanDoubleDown && aiOpponent.EnoughBetToDouble)
+        {
+            choiceWinningRates.Add(ChoiceKind.DoubleDown, info.rate_DoubleDown);
+        }
+        if (aiOpponent.GetCurrentHand.CanSplit && aiOpponent.EnoughBetToSplit)
+        {
+            choiceWinningRates.Add(ChoiceKind.Split, info.rate_Split);
+        }
+        if (aiOpponent.GetCurrentHand.CanSurrender)
+        {
+            choiceWinningRates.Add(ChoiceKind.Surrender, -0.5f);
+        }
+
+        ChoiceKind best = ChoiceKind.NotDetermined;
+        float bestRate = float.MinValue;
+        foreach (ChoiceKind kind in choiceWinningRates.Keys)
+        {
+            if (bestRate < choiceWinningRates[kind])
+            {
+                best = kind;
+                bestRate = choiceWinningRates[kind];
+            }
+        }
+        if(best==ChoiceKind.NotDetermined)
+        {
+            Debug.LogError("Stand is base choice, so whatever else should be determined in this stage");
+        }
+
+        //Debug.Log("-------ccn:"+ ccn+"-------dealer:"+ dealer.GetIndexOfOpen+"--------ai:"+ aiOpponent.GetCurrentHand.GetSituationIndex + "---------------------");
+        //foreach(var item in choiceWinningRates)
+        //{
+        //    Debug.Log(item.Key + " = "+item.Value);
+        //}
+        //Debug.Log("** " + best + " **");
+
+        return best;
+    }
+
     IEnumerator DealerGet()
     {
         insurancePanel.gameObject.SetActive(false);
@@ -229,9 +444,8 @@ public class PlayController : MonoBehaviour {
                     break;
                 }
 
-                dealer.GetOpenCard(deck.Pop(), delay: 0.6f);
+                GetDealerCard(false, true);
                 dealer.DisplayStateUI(delay: 0.9f);
-                SoundManager.Instance.Play("Effect_Card");
             }
         }
 
@@ -242,16 +456,25 @@ public class PlayController : MonoBehaviour {
 
         NextTurn(PLAY_TURN.RESULT);
     }
-    bool CanDealerProgress
+    private bool CanDealerProgress
     {
         get
         {
+            aiOpponent.ReadyForIteratingHand();
             player.ReadyForIteratingHand();
-            
-            if (player.GetCurrentHand.IsBlackjack ||
-                player.GetCurrentHand.IsSurrender)
+            if (
+                (player.GetCurrentHand.IsBlackjack || player.GetCurrentHand.IsSurrender)&& 
+                (aiOpponent.GetCurrentHand.IsBlackjack || aiOpponent.GetCurrentHand.IsSurrender))
                 return false;
 
+            do
+            {
+                if (aiOpponent.GetCurrentHand.IsBurst == false)
+                {
+                    return true;
+                }
+
+            } while (aiOpponent.UpdateToNextHand());
             do
             {
                 if (player.GetCurrentHand.IsBurst == false)
@@ -270,6 +493,7 @@ public class PlayController : MonoBehaviour {
     {
         if (dealer.IsBlackjack)
         {
+            aiOpponent.GetCurrentHand.RewardInsurance();
             player.GetCurrentHand.RewardInsurance();
             SoundManager.Instance.Play("Effect_Chip");
         }
@@ -285,18 +509,37 @@ public class PlayController : MonoBehaviour {
             yield return new WaitForSeconds(SoundManager.Instance.D_Blackjack());
         }
 
+        do
+        {
+            if (aiOpponent.GetCurrentHand > dealer)
+            {
+                aiOpponent.GetCurrentHand.RewardOrigin(aiOpponent.IsBlackjack ? BET_KIND.BLACKJACK : BET_KIND.ORIGINAL);
+                SoundManager.Instance.Play("Effect_Chip");
+            }
+            else if (aiOpponent.GetCurrentHand < dealer)
+            {
+                aiOpponent.GetCurrentHand.LoseBet(BET_KIND.ORIGINAL);
+            }
+
+            yield return new WaitForSeconds(0.4f);
+
+        } while (aiOpponent.UpdateToNextHand());
+
+
+        yield return new WaitForSeconds(1.0f);
+
         int winNum = 0;
         int loseNum = 0;
         do
         {
-            if (PlayerWin)
+            if (player.GetCurrentHand > dealer)
             {
                 player.GetCurrentHand.RewardOrigin(player.IsBlackjack ? BET_KIND.BLACKJACK : BET_KIND.ORIGINAL);
                 SoundManager.Instance.Play("Effect_Chip");
 
                 ++winNum;
             }
-            else if (DealerWin)
+            else if (player.GetCurrentHand < dealer)
             {
                 player.GetCurrentHand.LoseBet(BET_KIND.ORIGINAL);
 
@@ -307,9 +550,9 @@ public class PlayController : MonoBehaviour {
 
         } while (player.UpdateToNextHand());
 
-        if(player.GetCurrentHand.IsSurrender == false)
+        if (player.GetCurrentHand.IsSurrender == false)
         {
-            if(winNum ==0 && loseNum == 0)
+            if (winNum == 0 && loseNum == 0)
             {
                 yield return new WaitForSeconds(SoundManager.Instance.Push());
             }
@@ -323,41 +566,37 @@ public class PlayController : MonoBehaviour {
             }
         }
 
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(0.5f);
 
+        aiOpponent.CollectBet();
         player.CollectBet();
 
         NextTurn(PLAY_TURN.CLEAR);
     }
-    bool DealerWin
-    {
-        get
-        {
-            return (dealer > player.GetCurrentHand);
-        }
-    }
-    bool PlayerWin
-    {
-        get
-        {
-            return (dealer < player.GetCurrentHand);
-        }
-    }
 
     protected virtual IEnumerator Clear()
     {
-        dealer.MoveAll(dDeck.storeTransform, delay: 0.7f);
+        aiOpponent.MoveAll(dDeck.storeTransform, delay: 0.7f);
+        yield return new WaitForSeconds(0.2f);
         player.MoveAll(dDeck.storeTransform, delay: 0.7f);
+        yield return new WaitForSeconds(0.2f);
+        dealer.MoveAll(dDeck.storeTransform, delay: 0.7f);
 
         yield return new WaitForSeconds(0.7f);
 
-        dealer.DiscardAll(dDeck);
+        aiOpponent.DiscardAll(dDeck);
         player.DiscardAll(dDeck);
+        dealer.DiscardAll(dDeck);
+
+        ccn += holeCcn;
+        holeCcn = 0;
 
         if (deck.IsShuffleTime)
         {
             deck.Shuffle(dDeck, 1.6f);
             SoundManager.Instance.Play("Effect_Shuffle");
+
+            ccn = 0;
 
             yield return new WaitForSeconds(2.0f);
         }
@@ -365,52 +604,202 @@ public class PlayController : MonoBehaviour {
         NextTurn(PLAY_TURN.START);
     }
     
-    void UpdateTurn()
+    IEnumerator CoHit()
     {
+        if (!player.GetCurrentHand.CanHit)
+            yield break;
 
-        switch (turn)
+        canChoose = false;
+
+        GetPlayerCard(player, true);
+
+        yield return new WaitForSeconds(1.0f);
+
+        if(player.GetCurrentHand.Value == HAND_VALUE.BURST_PLAYER)
         {
-            case PLAY_TURN.SETTING:
+            yield return new WaitForSeconds(SoundManager.Instance.P_Burst());
+        }
 
-                if(player != null)
-                {
-                    NextTurn(PLAY_TURN.CHOICE);
-                }
-                break;
-                
-            case PLAY_TURN.CHOICE:
+        if (player.GetCurrentHand.IsStopChoice)
+        {
+            if (canChoose = player.UpdateAndCheckAllPossibleHand())
+            {
+                player.GetCurrentHand.Highlight();
+            }
+            else
+            {
+                NextTurn(PLAY_TURN.DEALER_GET);
+            }
+        }
+        else
+            canChoose = true;
+    }
+    IEnumerator CoStand()
+    {
+        if (!player.GetCurrentHand.CanStand)
+        {
+            Debug.LogError("always possible");
+            yield break;
+        }
 
-                if (Input.GetKeyDown(KeyCode.H))
-                {
-                    Hit();
-                }
-                if (Input.GetKeyDown(KeyCode.T))
-                {
-                    Stand();
-                }
-                if (Input.GetKeyDown(KeyCode.D))
-                {
-                    DoubleDown();
-                }
-                if (Input.GetKeyDown(KeyCode.S))
-                {
-                    Split();
-                }
-                if (Input.GetKeyDown(KeyCode.U))
-                {
-                    Surrender();
-                }
-                break;
+        canChoose = false;
+
+        yield return new WaitForSeconds(0.2f);
+
+        if (canChoose = player.UpdateAndCheckAllPossibleHand())
+        {
+            player.GetCurrentHand.Highlight();
+        }
+        else
+        {
+            NextTurn(PLAY_TURN.DEALER_GET);
         }
     }
+    IEnumerator CoDoubleDown()
+    {
+        if (!player.GetCurrentHand.CanDoubleDown || !player.EnoughBetToDouble)
+            yield break;
 
-    //--------------------------------UI, Button 관련-------------------------------------------------------------
-    // Button
+        canChoose = false;
+
+        player.DoubleDown();
+
+        yield return new WaitForSeconds(SoundManager.Instance.Play("Effect_Chip"));
+        yield return new WaitForSeconds(SoundManager.Instance.DoubleDown() + 0.5f);
+
+        GetPlayerCard(player, true);
+
+        yield return new WaitForSeconds(1.2f);
+
+        if(player.GetCurrentHand.Value == HAND_VALUE.BURST_PLAYER)
+        {
+            yield return new WaitForSeconds(SoundManager.Instance.P_Burst());
+        }
+
+        if (canChoose = player.UpdateAndCheckAllPossibleHand())
+        {
+            player.GetCurrentHand.Highlight();
+        }
+        else
+        {
+            NextTurn(PLAY_TURN.DEALER_GET);
+        }
+    }
+    IEnumerator CoSplit()
+    {
+        if (!player.GetCurrentHand.CanSplit || !player.EnoughBetToSplit)
+            yield break;
+
+        canChoose = false;
+
+        player.GetCurrentHand.DisHighlight();
+
+        PlayerHand secondHand = player.Split();
+        SoundManager.Instance.Play("Effect_Chip");
+        yield return new WaitForSeconds(0.5f);
+        GetPlayerCard(player, false);
+        yield return new WaitForSeconds(0.7f);
+
+        Card secondCard = deck.Pop();
+        ccn += secondCard.CountingScore;
+        secondCard.Move(secondHand.transform, 0.5f);
+        secondCard.Rotate(0.5f);
+        secondHand.Push(secondCard, false);
+        SoundManager.Instance.Play("Effect_Card");
+        yield return new WaitForSeconds(0.7f);
+
+        player.GetCurrentHand.Highlight(0.0f);
+
+        if (player.GetCurrentHand.IsStopChoice)
+        {
+            if (canChoose = player.UpdateAndCheckAllPossibleHand())
+            {
+                player.GetCurrentHand.Highlight();
+            }
+            else
+            {
+                NextTurn(PLAY_TURN.DEALER_GET);
+            }
+        }
+        else
+            canChoose = true;
+    }
+
+    IEnumerator CoSurrender()
+    {
+        if (!player.GetCurrentHand.CanSurrender)
+            yield break;
+
+        canChoose = false;
+
+        player.Surrender();
+        player.GetCurrentHand.DisplayStateUI(0.5f);
+        yield return new WaitForSeconds(0.4f);
+
+        NextTurn(PLAY_TURN.DEALER_GET);
+
+        yield return null;
+    }
+   
+    void GetPlayerCard(Player curPlayer, bool isEvent)
+    {
+        Card newCard = deck.Pop();
+        ccn += newCard.CountingScore;
+        SoundManager.Instance.Play("Effect_Card");
+        curPlayer.GetOpenCard(newCard, 0.5f);
+
+        if (isEvent)
+        {
+            curPlayer.GetCurrentHand.Highlight(delay: 0.6f);
+            curPlayer.GetCurrentHand.DisplayStateUI(delay: 0.9f);
+        }
+    }
+    void GetDealerCard(bool isHole, bool isEvent)
+    {
+        Card newCard = deck.Pop();
+        SoundManager.Instance.Play("Effect_Card");
+        if (isHole)
+        {
+            holeCcn = newCard.CountingScore;
+            dealer.GetHiddenCard(newCard, 0.5f);
+        }
+        else
+        {
+            ccn += newCard.CountingScore;
+            dealer.GetOpenCard(newCard, 0.5f);
+        }
+
+        if (isEvent)
+            dealer.DisplayStateUI(delay: 0.9f);
+    }
+
+    public void DoInsurance()
+    {
+        player.Budget -= player.GetCurrentHand.AmountOfBetting / 2;
+        player.GetCurrentHand.InsuranceBetting();
+        SoundManager.Instance.Play("Effect_Chip");
+
+        NextTurn(PLAY_TURN.IsBLACKJACK);
+    }
+    public void DontInsurance()
+    {
+        SoundManager.Instance.Play("Effect_Button_General");
+        NextTurn(PLAY_TURN.IsBLACKJACK);
+    }
+
+    #region rest
     public void Bet10()
     {
         player.Budget -= 10;
         player.GetCurrentHand.Betting(10);
         UpdateBettingButtonState(bettingButtonCenterSlider.centeredObject);
+
+        SoundManager.Instance.Play("Effect_Chip");
+    }
+    public void OpponentBet()
+    {
+        aiOpponent.Budget -= 20;
+        aiOpponent.GetCurrentHand.Betting(20);
 
         SoundManager.Instance.Play("Effect_Chip");
     }
@@ -426,14 +815,6 @@ public class PlayController : MonoBehaviour {
     {
         player.Budget -= 100;
         player.GetCurrentHand.Betting(100);
-        UpdateBettingButtonState(bettingButtonCenterSlider.centeredObject);
-
-        SoundManager.Instance.Play("Effect_Chip");
-    }
-    public void Bet500()
-    {
-        player.Budget -= 500;
-        player.GetCurrentHand.Betting(500);
         UpdateBettingButtonState(bettingButtonCenterSlider.centeredObject);
 
         SoundManager.Instance.Play("Effect_Chip");
@@ -487,7 +868,7 @@ public class PlayController : MonoBehaviour {
     {
         if (curCenterBettingButton)
         {
-            if((curCenterBettingButton.name == "500" && player.Budget >= 500) ||
+            if(
                 (curCenterBettingButton.name == "100" && player.Budget >= 100) ||
                 (curCenterBettingButton.name == "50" && player.Budget >= 50) ||
                 (curCenterBettingButton.name == "10" && player.Budget >= 10))
@@ -500,205 +881,6 @@ public class PlayController : MonoBehaviour {
         }
     }
 
-    // Choice들(걸러진 value를 사용해 Coroutine호출)
-    public void Hit()
-    {
-        if(canChoose == false)
-        {
-            return;
-        }
-
-        if (player.GetCurrentHand.CanHit)
-        {
-            StartCoroutine(CoHit());
-        }
-    }
-    public void Stand()
-    {
-        if(canChoose == false)
-        {
-            return;
-        }
-
-        if (player.GetCurrentHand.CanStand)
-        {
-            StartCoroutine(CoStand());
-        }
-    }
-    public void DoubleDown()
-    {
-        if(canChoose == false)
-        {
-            return;
-        }
-
-        if(player.GetCurrentHand.CanDoubleDown && player.EnoughBetToDouble)
-        {
-            StartCoroutine(CoDoubleDown());
-        }
-    }
-    public void Split()
-    {
-        if(canChoose == false)
-        {
-            return;
-        }
-
-        if(player.GetCurrentHand.CanSplit && player.EnoughBetToSplit)
-        {
-            StartCoroutine(CoSplit());
-        }
-    }
-    public void Surrender()
-    {
-        if(canChoose == false)
-        {
-            return;
-        }
-
-        if (player.GetCurrentHand.CanSurrender)
-        {
-            StartCoroutine(CoSurrender());
-        }
-    }
-    
-    // Coroutines(Choice과정 ,조건문없이 바로 적용)
-    IEnumerator CoHit()
-    {
-        canChoose = false;
-
-        GetOneCard();
-
-        yield return new WaitForSeconds(1.2f);
-
-        if(player.GetCurrentHand.Value == HAND_VALUE.BURST_PLAYER)
-        {
-            yield return new WaitForSeconds(SoundManager.Instance.P_Burst());
-        }
-
-        StartCoroutine(UpdateHand());
-    }
-    IEnumerator CoStand()
-    {
-        canChoose = player.UpdateAndCheckAllPossibleHand();
-
-        if (canChoose)
-        {
-            player.GetCurrentHand.Highlight();
-        }
-        else
-        {
-            NextTurn(PLAY_TURN.DEALER_GET);
-        }
-
-        yield return null;
-    }
-    IEnumerator CoDoubleDown()
-    {
-        canChoose = false;
-
-        player.DoubleDown();
-
-        yield return new WaitForSeconds(SoundManager.Instance.Play("Effect_Chip"));
-        yield return new WaitForSeconds(SoundManager.Instance.DoubleDown() + 0.5f);
-
-        GetOneCard();
-
-        yield return new WaitForSeconds(1.2f);
-
-        if(player.GetCurrentHand.Value == HAND_VALUE.BURST_PLAYER)
-        {
-            yield return new WaitForSeconds(SoundManager.Instance.P_Burst());
-        }
-
-        if (canChoose = player.UpdateAndCheckAllPossibleHand())
-        {
-            player.GetCurrentHand.Highlight();
-        }
-        else
-        {
-            NextTurn(PLAY_TURN.DEALER_GET);
-        }
-    }
-    IEnumerator CoSplit()
-    {
-        canChoose = false;
-
-        player.GetCurrentHand.DisHighlight();
-
-        PlayerHand secondHand = null;
-        secondHand = player.Split(player.GetCurrentHand.IsDoubleAce);
-        SoundManager.Instance.Play("Effect_Chip");
-        yield return new WaitForSeconds(0.5f);
-        player.GetOpenCard(deck.Pop(), 0.5f);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.7f);
-
-        Card secondCard = deck.Pop();
-        secondCard.Move(secondHand.transform, 0.5f);
-        secondCard.Rotate(0.5f);
-        secondHand.Push(secondCard, isFirstHand: false);
-        SoundManager.Instance.Play("Effect_Card");
-        yield return new WaitForSeconds(0.7f);
-
-        player.GetCurrentHand.Highlight(0.0f);
-
-        StartCoroutine(UpdateHand());
-    }
-
-    IEnumerator CoSurrender()
-    {
-        canChoose = false;
-
-        player.Surrender();
-        player.GetCurrentHand.DisplayStateUI(0.5f);
-        yield return new WaitForSeconds(0.4f);
-
-        NextTurn(PLAY_TURN.DEALER_GET);
-
-        yield return null;
-    }
-    // 특수 Coroutine
-    IEnumerator UpdateHand()
-    {
-        yield return new WaitForSeconds(0.7f);
-
-        canChoose = true;
-        if (player.GetCurrentHand.IsStopChoice)
-        {
-            if (canChoose = player.UpdateAndCheckAllPossibleHand())
-            {
-                player.GetCurrentHand.Highlight();
-            }
-            else
-            {
-                NextTurn(PLAY_TURN.DEALER_GET);
-            }
-        }
-    }
-
-    void GetOneCard()
-    {
-        player.GetOpenCard(deck.Pop(), delay: 0.5f);
-        player.GetCurrentHand.Highlight(delay: 0.6f);
-        player.GetCurrentHand.DisplayStateUI(delay: 0.9f);
-        SoundManager.Instance.Play("Effect_Card");
-    }
-
-    public void DoInsurance()
-    {
-        player.Budget -= player.GetCurrentHand.AmountOfBetting / 2;
-        player.GetCurrentHand.InsuranceBetting();
-        SoundManager.Instance.Play("Effect_Chip");
-
-        NextTurn(PLAY_TURN.IsBLACKJACK);
-    }
-    public void DontInsurance()
-    {
-        SoundManager.Instance.Play("Effect_Button_General");
-        NextTurn(PLAY_TURN.IsBLACKJACK);
-    }
-
     public void OnClickBetAndStartGame()
     {
         SoundManager.Instance.Play("Effect_Button_General");
@@ -706,8 +888,7 @@ public class PlayController : MonoBehaviour {
     }
     public void OnClickCancelBetting()
     {
-        int amount;
-        player.GetCurrentHand.Collect(out amount);
+        player.GetCurrentHand.Collect(out int amount);
         player.Budget += amount;
 
         SoundManager.Instance.Play("Effect_Button_General");
@@ -722,4 +903,5 @@ public class PlayController : MonoBehaviour {
         //Application.LoadLevel("Lobby");
 
     }
+    #endregion
 }

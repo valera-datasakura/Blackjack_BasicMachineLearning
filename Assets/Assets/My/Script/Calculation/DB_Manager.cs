@@ -10,11 +10,6 @@ class CountingFilePath
 {
     public static string filePath(int idx)
     {
-        /*
-        Windows Store Apps: % userprofile %\AppData\Local\Packages\< productname >\LocalState.
-        iOS: / var / mobile / Containers / Data / Application /< guid >/ Documents.
-        Adroid : /storage/emulated/0/Android/data/<packagename>/files
-         */
         return Application.persistentDataPath +
                 "/counting" + (idx).ToString() + ".xml";
     }
@@ -210,7 +205,7 @@ public struct ResultInfo
 public class DB_Manager : MonoBehaviour
 {
     // Singleton---------------
-    static DB_Manager sInstance;
+    private static DB_Manager sInstance;
     public static DB_Manager Instance
     {
         get
@@ -231,9 +226,10 @@ public class DB_Manager : MonoBehaviour
     public const int MIN_CCN = -30;
     public const int RANGE_CCN = -MIN_CCN + MAX_CCN + 1;
 
-    Situation_Info[,,] situations = new Situation_Info[RANGE_CCN, 10, 34];
-    Burst_Info[,] bursts = new Burst_Info[RANGE_CCN, 9];
+    private Situation_Info[,,] situations = new Situation_Info[RANGE_CCN, 10, 34];
+    private Burst_Info[,] bursts = new Burst_Info[RANGE_CCN, 9];
 
+    private int totalCount = 0;
     
     //_______________________Initialize & CallBack___________________________________________
     void Awake()
@@ -247,6 +243,11 @@ public class DB_Manager : MonoBehaviour
         Save();
     }
     //_______________________Access_______________________________________________
+    public int TotalCount {
+        get {
+            return totalCount;
+        }
+    }
     public Situation_Info GetSingle(int counting, int dealer, int player)
     {
         return situations[counting + MAX_CCN, dealer, player];
@@ -254,6 +255,11 @@ public class DB_Manager : MonoBehaviour
     public void SetSingle(int counting, int dealer, int player, Situation_Info value)
     {
         situations[counting + MAX_CCN, dealer, player] = value;
+        totalCount += value.total_Hit;
+        totalCount += value.total_Stand;
+        totalCount += value.total_DoubleDown;
+        totalCount += value.total_Split;
+        totalCount += value.total_Insurance;
     }
     public Burst_Info GetBurst(int count, int card)
     {
@@ -262,6 +268,7 @@ public class DB_Manager : MonoBehaviour
     public void SetBurst(int count, int card, Burst_Info value)
     {
         bursts[count + MAX_CCN, card - 12] = value;
+        totalCount += value.total;
     }
 
     public void AddResultInfo(ResultInfo sampleInfo)
@@ -303,6 +310,8 @@ public class DB_Manager : MonoBehaviour
             default:
                 break;
         }
+
+        totalCount++;
     }
     public void AddBurstInfo(int count, int p_value)
     {
@@ -310,6 +319,7 @@ public class DB_Manager : MonoBehaviour
         
         burstInfo.rate = (burstInfo.total * burstInfo.rate + 1f) / (burstInfo.total + 1f);
         ++(burstInfo.total);
+        ++totalCount;
     }
     public void AddNotBurstInfo(int count, int p_value)
     {
@@ -317,6 +327,7 @@ public class DB_Manager : MonoBehaviour
 
         burstInfo.rate = (burstInfo.total * burstInfo.rate) / (burstInfo.total + 1f);
         ++(burstInfo.total);
+        ++totalCount;
     }
     
     //_______________________Xml___________________________________________________

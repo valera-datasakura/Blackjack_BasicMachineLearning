@@ -26,7 +26,7 @@ public class SoundManager : MonoBehaviour {
     Dictionary<string, AudioClip> dicClips = new Dictionary<string, AudioClip>();
     
     //_________________랜덤 Bgm__________________
-    string[] arrLobbys = new string[]
+    readonly string[] arrLobbys = new string[]
     {
         "Bgm_Lobby1",
         "Bgm_Lobby2",
@@ -34,11 +34,11 @@ public class SoundManager : MonoBehaviour {
         "Bgm_Lobby4",
         "Bgm_Lobby5"
     };
-    string[] arrPlays = new string[]
+    readonly string[] arrPlays = new string[]
     {
         "Bgm_Play1"
     };
-    string[] arrStatistics = new string[]
+    readonly string[] arrStatistics = new string[]
     {
         "Bgm_Statistics1",
         "Bgm_Statistics2",
@@ -47,44 +47,42 @@ public class SoundManager : MonoBehaviour {
         "Bgm_Statistics5"
     };
     //________________랜덤 Effect_______________
-    string[] bettings = new string[]
+    readonly string[] bettings = new string[]
     {
-        "Betting1",
-        "Betting2",
         "Betting1",
         "Betting2"
     };
-    string[] insurance = new string[]
+    readonly string[] insurance = new string[]
     {
         "Insurance1",
         "Insurance2",
         "Insurance3"
     };
-    string[] p_Blackjack = new string[]
+    readonly string[] p_Blackjack = new string[]
     {
         "PlayerBlackjack1",
         "PlayerBlackjack2"
     };
-    string[] d_Blackjack = new string[]
+    readonly string[] d_Blackjack = new string[]
     {
          "DealerBlackjack1",
          "DealerBlackjack2"
     };
-    string[] doubleDown = new string[]
+    readonly string[] doubleDown = new string[]
     {
         "DoubleDown1",
         "DoubleDown2",
         "DoubleDown3",
         "DoubleDown4"
     };
-    string[] p_Burst = new string[]
+    readonly string[] p_Burst = new string[]
     {
         "PlayerBurst1",
         "PlayerBurst2",
         "PlayerBurst3",
         "PlayerBurst4"
     };
-    string[] d_Burst = new string[]
+    readonly string[] d_Burst = new string[]
     {
         "DealerBurst1",
         "DealerBurst2",
@@ -93,21 +91,21 @@ public class SoundManager : MonoBehaviour {
         "DealerBurst5",
         "DealerBurst6"
     };
-    string[] win = new string[]
+    readonly string[] win = new string[]
     {
         "Win1",
         "Win2",
         "Win3",
         "Win4"
     };
-    string[] lose = new string[]
+    readonly string[] lose = new string[]
     {
         "Lose1",
         "Lose2",
         "Lose3",
         "Lose4"
     };
-    string[] push = new string[]
+    readonly string[] push = new string[]
     {
         "Push1"
     };
@@ -131,8 +129,6 @@ public class SoundManager : MonoBehaviour {
         {
             return;
         }
-
-        
 
         int rand;
         AudioClip newClip;
@@ -183,7 +179,7 @@ public class SoundManager : MonoBehaviour {
             }
         }
 
-        audioSource.volume = 0.075f;
+        audioSource.volume = 1.0f;
         audioSource.Play();
     }
     //______________________________Access_____________________________
@@ -222,15 +218,7 @@ public class SoundManager : MonoBehaviour {
     }
     public float Insurance()
     {
-        int rand = Random.Range(0, insurance.Length + 2);
-        if (rand < insurance.Length)
-        {
-            return Play(insurance[rand]);
-        }
-        else
-        {
-            return 0f;
-        }
+        return Play(insurance[Random.Range(0, insurance.Length)]);
     }
     public float DoubleDown()
     {

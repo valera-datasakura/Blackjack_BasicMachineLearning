@@ -7,7 +7,7 @@ public class AI_Controller : MonoBehaviour
 {
     void Update()
     {
-        for (int i = 0; i < 1000; ++i)
+        for (int i = 0; i < 250; ++i)
         {
             Ready();
 
@@ -211,15 +211,16 @@ public class AI_Controller : MonoBehaviour
                 curChoice = GetBestChoice(resultInfo.dealerIdx);
             }
 
-            bool loop = true;
-            while (loop)
+            while (true)
             {
+                bool loop = true;
+
                 switch (curChoice)
                 {
                     case ChoiceKind.Hit:
                         GetCardPlayer();
                         
-                        loop = (player.GetCurrentHand.CanChoose && PreferHit(resultInfo.dealerIdx));
+                        loop = (!player.GetCurrentHand.IsStopChoice && PreferHit(resultInfo.dealerIdx));
                         
                         break;
 
@@ -261,7 +262,7 @@ public class AI_Controller : MonoBehaviour
                         secondHand.Push(secondCard, false);
 
                         curChoice = GetBestChoice(resultInfo.dealerIdx);
-                        loop = (curChoice != ChoiceKind.NotDetermined);
+                        loop = (curChoice != ChoiceKind.Stand);
 
                         break;
 
@@ -274,16 +275,15 @@ public class AI_Controller : MonoBehaviour
                         break;
 
                     case ChoiceKind.NotDetermined:
-                        
-                        loop = false;
 
+                        Debug.LogError("Stand is base choice, so whatever else should be determined in this stage");
+                        loop = false;
                         break;
                 }
 
                 if (loop == false)
                     break;
-
-            }// while(Loop)
+            }
 
         } while (player.UpdateAndCheckAllPossibleHand());
     }
@@ -365,11 +365,10 @@ public class AI_Controller : MonoBehaviour
     }
     ChoiceKind GetBestChoice(int dealer_idx)
     {
-        int player_idx = player.GetCurrentHand.GetSituationIndex;
         Dictionary<ChoiceKind, float> choiceWinningRates = new Dictionary<ChoiceKind, float>();
         AI_PlayerHand playerHand = player.GetCurrentHand;
         
-        Situation_Info info = DB_Manager.Instance.GetSingle(player.CCNumber, dealer_idx, player_idx);
+        Situation_Info info = DB_Manager.Instance.GetSingle(player.CCNumber, dealer_idx, player.GetCurrentHand.GetSituationIndex);
 
         if (playerHand.CanHit)
         {
@@ -401,6 +400,11 @@ public class AI_Controller : MonoBehaviour
                 best = kind;
                 bestRate = choiceWinningRates[kind];
             }
+        }
+
+        if(best == ChoiceKind.NotDetermined)
+        {
+            Debug.LogError("should be determined for best choice");
         }
        
         return best;

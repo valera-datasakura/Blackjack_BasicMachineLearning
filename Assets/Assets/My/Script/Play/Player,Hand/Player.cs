@@ -66,7 +66,7 @@ public class Player : MonoBehaviour {
     {
         get
         {
-            return Budget >= GetCurrentHand.AmountOfBetting / 2;
+            return (Budget >= (GetCurrentHand.AmountOfBetting / 2));
         }
     }
     public void CollectBet()
@@ -87,6 +87,11 @@ public class Player : MonoBehaviour {
         get
         {
             return hands[currentHandIndex];
+        }
+    }
+    public int HandCount {
+        get {
+            return hands.Count;
         }
     }
     public bool IsFirstHand // 하위클래스Hand에서 블랙잭 판별하기 위해서(현재 상황에서 판단=GetCard에서 사용금지)
@@ -230,9 +235,10 @@ public class Player : MonoBehaviour {
     // 각각의 핸드에 접근을 해야한다 그런데
     // 핸드 접근방법이 단방향 인덱싱이기 때문에(양방향 할수도있지만 가독성, 안전성을 위해)
     // 2번째 핸드의 객체를 인자로 전달받아서 접근한다
-    public PlayerHand Split(bool isAce)
+    public PlayerHand Split()
     {
-        // 스플릿된 핸드에 전해줄  카드와 배팅액  수치 구함
+        bool isDoubleAce = GetCurrentHand.IsDoubleAce;
+
         Card card = GetCurrentHand.Pop();
         card.DisHighlight();
         int bet = GetCurrentHand.AmountOfBetting;
@@ -241,7 +247,7 @@ public class Player : MonoBehaviour {
         // 추가한 핸드
         PlayerHand splitHand = AddHand();
 
-        if(isAce)
+        if(isDoubleAce)
         {
             GetCurrentHand.SetSplitAce();
             splitHand.SetSplitAce();

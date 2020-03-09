@@ -5,10 +5,11 @@ using CardEnums;
 
 public class AI_Hand : MonoBehaviour
 {
-    public HAND_VALUE value = HAND_VALUE.NOTHING;
+    [HideInInspector] public HAND_VALUE value = HAND_VALUE.NOTHING;
 
-    public List<AI_Card> cards = new List<AI_Card>();
-    public bool isSoft = false;
+    [HideInInspector] public List<AI_Card> cards = new List<AI_Card>();
+
+    private bool isSoft = false;
     
     //_______________________________________Cards________________________________
     void CheckValue(bool isFirstHand)

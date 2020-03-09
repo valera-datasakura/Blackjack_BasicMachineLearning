@@ -5,9 +5,30 @@ using UnityEngine;
 
 public class Simulator : MonoBehaviour
 {
+    [SerializeField] private AI_Deck deck;
+    [SerializeField] private AI_DiscardDeck dDeck;
+    [SerializeField] private AI_DealerHand dealer;
+    [SerializeField] private AI_Player player;
+
+    [SerializeField] private UILabel totalLabel;
+    [SerializeField] private UILabel winningLabel;
+
+    private int holeCardCountingNumber;
+    private float totalBetting;
+    private float earningBetting;
+
+    private float curTime = 0;
+
+    private ResultInfo resultInfo;
+
+    void Start()
+    {
+        player.Init();
+        dealer.Init();
+    }
     void Update()
     {
-        for(int i = 0; i < 1800; ++i)
+        for(int i = 0; i < 100; ++i)
         {
             Ready();
 
@@ -26,6 +47,15 @@ public class Simulator : MonoBehaviour
             Result();
 
             ClearTable();
+        }
+
+        curTime += Time.deltaTime;
+        if (curTime >0.2f)
+        {
+            totalLabel.text = DB_Manager.Instance.TotalCount.ToString();
+            winningLabel.text = (totalRate / totalGame).ToString("f5");
+
+            curTime = 0;
         }
     }
 
@@ -106,10 +136,8 @@ public class Simulator : MonoBehaviour
         }
     }
 
-    static long game1 = 0;
-    static double rate1 = 0;
-    static long game2 = 0;
-    static double rate2 = 0;
+    static long totalGame = 0;
+    static double totalRate = 0;
     void Result()
     {
         if(player.GetCurrentHand.IsSurrender)
@@ -130,22 +158,8 @@ public class Simulator : MonoBehaviour
 
         player.Collect();
 
-        //DB_Manager.Instance.AddResultInfo(resultInfo);
-
-        if(resultInfo.countingNumber >= 10)
-        {
-            rate1 += resultInfo.winningRate;
-            game1++;
-        }
-        else if(resultInfo.countingNumber <= -10)
-        {
-            rate2 += resultInfo.winningRate;
-            game2++;
-        }
-        if(Random.Range(0, 1000) == 0)
-        {
-            Debug.Log("(CCN >= 10) winning rate = " + (rate1 / game1).ToString("f5") + " (CCN <= -10) winning rate = " + (rate2 / game2).ToString("f5"));
-        }
+        totalRate += resultInfo.winningRate;
+        totalGame++;
     }
     void ExecuteMainBetting()
     {
@@ -199,54 +213,43 @@ public class Simulator : MonoBehaviour
 
     void Choice()
     {
-        ChoiceKind curChoice = ChoiceKind.NotDetermined;
-
-
         do
         {
-            // always best choice
-            curChoice = GetBestChoice(resultInfo.dealerIdx);
-
-            bool loop = true;
-            while(loop)
+            bool isLoop = true;
+            do
             {
-                switch(curChoice)
+                switch (GetBestChoice(resultInfo.dealerIdx))
                 {
                     case ChoiceKind.Hit:
 
                         GetCardPlayer();
 
-                        loop = (player.GetCurrentHand.CanChoose && PreferHit(resultInfo.dealerIdx));
+                        isLoop = (!player.GetCurrentHand.IsStopChoice && PreferHit(resultInfo.dealerIdx));
 
                         break;
 
                     case ChoiceKind.Stand:
-                        loop = false;
+                        isLoop = false;
                         break;
 
                     case ChoiceKind.DoubleDown:
 
                         player.DoubleDown();
-                        
+
                         GetCardPlayer();
-                        
-                        loop = false;
+
+                        isLoop = false;
 
                         break;
 
                     case ChoiceKind.Split:
 
-                        AI_PlayerHand secondHand = null;
-                        AI_Card secondCard = deck.Pop();
-
-                        player.AddCCNumber(secondCard.cardCountingScore);
-
-                        secondHand = player.Split(player.GetCurrentHand.IsDoubleAce);
+                        AI_PlayerHand secondHand = player.Split(player.GetCurrentHand.IsDoubleAce);
                         GetCardPlayer();
-                        secondHand.Push(secondCard, false);
 
-                        curChoice = GetBestChoice(resultInfo.dealerIdx);
-                        loop = (curChoice != ChoiceKind.NotDetermined);
+                        AI_Card secondCard = deck.Pop();
+                        player.AddCCNumber(secondCard.cardCountingScore);
+                        secondHand.Push(secondCard, false);
 
                         break;
 
@@ -254,21 +257,18 @@ public class Simulator : MonoBehaviour
 
                         player.GetCurrentHand.AmountOfBetting = 0;
                         player.GetCurrentHand.IsSurrender = true;
-                        loop = false;
+                        isLoop = false;
 
                         break;
 
                     case ChoiceKind.NotDetermined:
 
-                        loop = false;
+                        isLoop = false;
 
                         break;
                 }
 
-                if(loop == false)
-                    break;
-
-            }// while(Loop)
+            } while (isLoop && !player.GetCurrentHand.IsStopChoice);
 
         } while(player.UpdateAndCheckAllPossibleHand());
     }
@@ -299,25 +299,25 @@ public class Simulator : MonoBehaviour
 
     bool PreferHit(int dealerNum_idx)
     {
-        int playerNum_Idx = FirstHandValue_To_SituationKind.Convert(player.GetCurrentHand.value, player.GetCurrentHand.IsSoft);
+        int player_Idx = FirstHandValue_To_SituationKind.Convert(player.GetCurrentHand.value, player.GetCurrentHand.IsSoft);
 
         //  1.
-        float standWinningRate = (DB_Manager.Instance.GetSingle(player.CCNumber, dealerNum_idx, playerNum_Idx).rate_Stand + 1f) / 2f;
+        float standWinningRate = (DB_Manager.Instance.GetSingle(player.CCNumber, dealerNum_idx, player_Idx).rate_Stand + 1f) / 2f;
 
         //  2.
         float hitBurstRate = 0;
-        if((int)player.GetCurrentHand.value >= 12 && player.GetCurrentHand.IsHard)
+        if ((int)player.GetCurrentHand.value >= 12 && player.GetCurrentHand.IsHard)
         {
             hitBurstRate = DB_Manager.Instance.GetBurst(player.CCNumber, (int)player.GetCurrentHand.value).rate;
         }
-        
+
         float average =
            ((1f - standWinningRate) * (1f + AI_Controller.HIT_WEIGHT)
             + (1f - hitBurstRate) * (1f - AI_Controller.HIT_WEIGHT))
             / 2f;
 
         //  3.
-        return (average > HIT_PREFERENCE);
+        return (average > AI_Controller.HIT_PREFERENCE);
     }
     ChoiceKind GetBestChoice(int dealer_idx)
     {
@@ -361,26 +361,5 @@ public class Simulator : MonoBehaviour
         return best;
     }
 
-    #region rest
-
-    [SerializeField] AI_Deck deck;
-    [SerializeField] AI_DiscardDeck dDeck;
-    [SerializeField] AI_DealerHand dealer;
-    [SerializeField] AI_Player player;
-
-    const float HIT_PREFERENCE = AI_Controller.HIT_PREFERENCE;
-    
-    int holeCardCountingNumber;
-    float totalBetting;
-    float earningBetting;
-
-    ResultInfo resultInfo;
-
-    void Start()
-    {
-        player.Init();
-        dealer.Init();
-    }
-#endregion
 }
 

@@ -6,8 +6,8 @@ public class AI_Deck : MonoBehaviour
 {
     public GameObject card;
     
-    float shuffleTimeOfRemainingPercentage = 0.25f;
-    int numOfDeck = 6;
+    private float shuffleTimeOfRemainingPercentage = 0.25f;
+    private int numOfDeck = 6;
 
     List<AI_Card> cards;
 
@@ -21,6 +21,7 @@ public class AI_Deck : MonoBehaviour
     }
 
     //________________________________Rest________________________________
+
     public bool IsShuffleTime
     {
         get

@@ -2,7 +2,7 @@
 
 public class AI_PlayerHand : AI_Hand
 {
-    int bitChoices;
+    int bitChoices= (int)ChoiceKind.Stand;
 
     bool isInsurance = false;
     bool isSurrender = false;
@@ -15,34 +15,23 @@ public class AI_PlayerHand : AI_Hand
 
     void UpdateChoices(bool isFirstHand)
     {
-        bitChoices = 0;
+        bitChoices = (int)ChoiceKind.Stand;
 
-        if (value < (HAND_VALUE)21)
+        if (value < (HAND_VALUE)21 && !isSplitAce)
         {
-            // Hit
-            if (isSplitAce == false)
-            {
-                bitChoices |= (int)ChoiceKind.Hit;
-            }
-
-            // Stand
-            bitChoices |= (int)ChoiceKind.Stand;
+            bitChoices |= (int)ChoiceKind.Hit;
 
             if (cards.Count == 2)
             {
-                // DoubleDown
-                if (isSplitAce == false)
-                {
-                    bitChoices |= (int)ChoiceKind.DoubleDown;
-                }
-
+                bitChoices |= (int)ChoiceKind.DoubleDown;
+                
                 if (cards[0].number == cards[1].number)
                 {
                     // Split
                     bitChoices |= (int)ChoiceKind.Split;
                 }
 
-                if (isFirstHand && isInsurance == false)
+                if (isFirstHand)
                 {
                     // Surrender
                     bitChoices |= (int)ChoiceKind.Surrender;
@@ -99,21 +88,15 @@ public class AI_PlayerHand : AI_Hand
         }
     }
 
-    public bool CanChoose
+    public bool IsStopChoice
     {
         get
         {
-            if (value == HAND_VALUE.BURST_PLAYER ||
-                value == HAND_VALUE.BLACKJACK ||
-                value == HAND_VALUE.VALUE21 ||
-                (isSplitAce && (cards[0].number != cards[1].number)))
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+            return (value == HAND_VALUE.BURST_PLAYER ||
+               value == HAND_VALUE.BLACKJACK ||
+               value == HAND_VALUE.VALUE21 ||
+               isSurrender ||
+               isSplitAce);
         }
     }
     public bool IsDoubleAce

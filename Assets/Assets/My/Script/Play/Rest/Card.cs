@@ -3,8 +3,14 @@ using System.Collections;
 
 public class Card : MonoBehaviour {
 
-    int number;
+    private int number;
+    private int countingScore = 0;
     
+    public int CountingScore {
+        get {
+            return countingScore;
+        }
+    }
     public int Number
     {
         get
@@ -22,6 +28,15 @@ public class Card : MonoBehaviour {
 	public void Setting(int num)
     {
         this.number = num;
+
+        if (2 <= number && number <= 6)
+        {
+            countingScore = 1;
+        }
+        else if (number == 10 || number == 1)
+        {
+            countingScore = -1;
+        }
     }
     
     

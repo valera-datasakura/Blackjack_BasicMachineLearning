@@ -10,8 +10,21 @@ public class Hand : MonoBehaviour {
 
     protected List<Card> cards = new List<Card>();
     protected HAND_VALUE value = HAND_VALUE.NOTHING;
-    
+    protected bool isSoft = false;
+
     //_______________________________________Card관련________________________________
+
+    public bool IsSoft {
+        get {
+            return isSoft;
+        }
+    }
+    public bool IsHard {
+        get {
+            return !isSoft;
+        }
+    }
+
     public static bool operator <(Hand hand1, Hand hand2)
     {
         if (hand1.Value < hand2.Value)
@@ -112,7 +125,7 @@ public class Hand : MonoBehaviour {
         }
     }
 
-    void CheckValue(bool isFirstHand)
+    private void CheckValue(bool isFirstHand)
     {
         if (cards.Count <= 1)
         {
@@ -121,14 +134,15 @@ public class Hand : MonoBehaviour {
         }
 
         int total = 0;
-        bool isSoft = false;
+        isSoft = false;
+        bool isSoftTemp = false;
         for (int i = 0; i < cards.Count; ++i)
         {
             total += cards[i].Number;
 
             if (cards[i].Number == 1)
             {
-                isSoft = true;
+                isSoftTemp = true;
             }
         }
 
@@ -145,20 +159,20 @@ public class Hand : MonoBehaviour {
         }
         else
         {
-            if (!isSoft)// 하드
+            if (!isSoftTemp)// 하드
             {
                 value = (HAND_VALUE)total;
             }
             else // Soft
             {
-                total += 10;
-                if (total > 21)
+                if (total > 11)
                 {
-                    total -= 10;
                     value = (HAND_VALUE)total;
                 }
                 else
                 {
+                    total += 10;
+                    isSoft = true;
                     if (isFirstHand && total == 21 && cards.Count == 2) // Blackjack
                     {
                         value = HAND_VALUE.BLACKJACK;

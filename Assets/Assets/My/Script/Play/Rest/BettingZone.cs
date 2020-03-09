@@ -15,12 +15,11 @@ public class BettingZone : MonoBehaviour {
     public GameObject chip10;
     public GameObject chip50;
     public GameObject chip100;
-    public GameObject chip500;
     
 
     Transform insuranceBetTransform;
     
-    Vector2 betRange = new Vector2(10, 1000);
+    Vector2 betRange = new Vector2(10, 100);
     int currentBet;
     int insuranceBet;
     float chipHeight = 0.05f;
@@ -208,17 +207,6 @@ public class BettingZone : MonoBehaviour {
         {
             case BET_KIND.ORIGINAL:
                 tempCurBet = currentBet;
-                while (tempCurBet >= 500) // 500짜리
-                {
-                    newChip = Chip500();
-                    Vector3 stackPos = newChip.transform.position;
-                    stackPos.y += chipHeight * (stackCount++);
-                    newChip.transform.position = stackPos;
-                    newChip.transform.SetParent(this.transform);
-                    originalChips.Add(newChip);
-
-                    tempCurBet -= 500;
-                }
                 while (tempCurBet >= 100) // 100짜리
                 {
                     newChip = Chip100();
@@ -257,18 +245,6 @@ public class BettingZone : MonoBehaviour {
                 for (int i = 0; i < 2; ++i)
                 {
                     tempCurBet = currentBet / 2;
-                    while (tempCurBet >= 500) // 500짜리
-                    {
-                        newChip = Chip500();
-                        Vector3 stackPos =
-                            newChip.transform.position + (Vector3.left * closeChipDistance / 2.0f) + (Vector3.right * closeChipDistance) * i;
-                        stackPos.y += chipHeight * (stackCount++);
-                        newChip.transform.position = stackPos;
-                        newChip.transform.SetParent(this.transform);
-                        originalChips.Add(newChip);
-
-                        tempCurBet -= 500;
-                    }
                     while (tempCurBet >= 100) // 100짜리
                     {
                         newChip = Chip100();
@@ -309,20 +285,6 @@ public class BettingZone : MonoBehaviour {
                 break;
             default: // Insurance
                 tempCurBet = insuranceBet;
-                while (tempCurBet >= 500) // 500짜리
-                {
-                    newChip = Chip500();
-                    Vector3 stackPos =
-                        newChip.transform.position -
-                        this.transform.position +
-                        insuranceBetTransform.position;
-                    stackPos.y += chipHeight * (stackCount++);
-                    newChip.transform.position = stackPos;
-                    newChip.transform.SetParent(this.transform);
-                    insuranceChips.Add(newChip);
-
-                    tempCurBet -= 500;
-                }
                 while (tempCurBet >= 100) // 100짜리
                 {
                     newChip = Chip100();
@@ -383,18 +345,6 @@ public class BettingZone : MonoBehaviour {
                 for (int i = 0; i < 2; ++i)
                 {
                     tempCurBet = currentBet / 2;
-                    while (tempCurBet >= 500) // 500짜리
-                    {
-                        newChip = Chip500();
-                        Vector3 stackPos =
-                            newChip.transform.position + (Vector3.left * closeChipDistance / 2.0f) + (Vector3.right * closeChipDistance) * i;
-                        stackPos.y += chipHeight * (stackCount++);
-                        newChip.transform.position = stackPos;
-                        newChip.transform.SetParent(this.transform);
-                        originalChips.Add(newChip);
-
-                        tempCurBet -= 500;
-                    }
                     while (tempCurBet >= 100) // 100짜리
                     {
                         newChip = Chip100();
@@ -439,20 +389,6 @@ public class BettingZone : MonoBehaviour {
                     for (int j = 0; j < 2; ++j)
                     {
                         tempCurBet = currentBet / 4;
-                        while (tempCurBet >= 500) // 500짜리
-                        {
-                            newChip = Chip500();
-                            Vector3 stackPos =
-                                newChip.transform.position +
-                                (Vector3.left * closeChipDistance / 2.0f) + (Vector3.right * closeChipDistance) * i +
-                                (Vector3.back * closeChipDistance / 2.0f) + (Vector3.forward * closeChipDistance) * j;
-                            stackPos.y += chipHeight * (stackCount++);
-                            newChip.transform.position = stackPos;
-                            newChip.transform.SetParent(this.transform);
-                            originalChips.Add(newChip);
-
-                            tempCurBet -= 500;
-                        }
                         while (tempCurBet >= 100) // 100짜리
                         {
                             newChip = Chip100();
@@ -502,22 +438,6 @@ public class BettingZone : MonoBehaviour {
                 for (int i = 0; i < 3; ++i)
                 {
                     tempCurBet = insuranceBet / 3;
-                    Quaternion rot = Quaternion.Euler(0.0f, 120.0f * i, 0.0f);
-                    while (tempCurBet >= 500) // 500짜리
-                    {
-                        newChip = Chip500();
-                        Vector3 stackPos =
-                            newChip.transform.position -
-                            this.transform.position +
-                            insuranceBetTransform.position +
-                            rot * Vector3.forward;
-                        stackPos.y += chipHeight * (stackCount++);
-                        newChip.transform.position = stackPos;
-                        newChip.transform.SetParent(this.transform);
-                        insuranceChips.Add(newChip);
-
-                        tempCurBet -= 500;
-                    }
                     while (tempCurBet >= 100) // 100짜리
                     {
                         newChip = Chip100();
@@ -622,26 +542,6 @@ public class BettingZone : MonoBehaviour {
                 0.0f
                 );
         GameObject newObj = (GameObject)Instantiate(chip100, randPos, randRot);
-        Chip newChip = newObj.GetComponent<Chip>();
-        return newChip;
-    }
-    Chip Chip500()
-    {
-        Vector3 randPos =
-            transform.position +
-            new Vector3(
-                Random.Range(-chipRandomDistance, chipRandomDistance),
-                0.0f,
-                Random.Range(-chipRandomDistance, chipRandomDistance)
-                );
-        Quaternion randRot =
-            transform.rotation *
-            Quaternion.Euler(
-                0.0f,
-                Random.Range(0, 360),
-                0.0f
-                );
-        GameObject newObj = (GameObject)Instantiate(chip500, randPos, randRot);
         Chip newChip = newObj.GetComponent<Chip>();
         return newChip;
     }

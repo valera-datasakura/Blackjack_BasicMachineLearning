@@ -68,6 +68,7 @@ public class PlayerHand : Hand {
 
     //_________________________________________카드 관련___________________________________________________________
     // Only 카드 상황 not Account
+
     public bool CanHit
     {
         get
@@ -112,28 +113,73 @@ public class PlayerHand : Hand {
                 value == HAND_VALUE.BLACKJACK ||
                 value == HAND_VALUE.VALUE21 ||
                 isSurrender ||
-                (isSplitAce && (cards[0].Number != cards[1].Number))) ;
+                isSplitAce) ;
         }
     }
     public int GetSituationIndex
     {
         get
         {
-            if (cards[0].Number == cards[1].Number) // 더블
+            if (cards.Count == 2)
             {
-                return cards[0].Number + 23; // 24~33(10)
+                if (cards[0].Number == cards[1].Number) // 더블
+                {
+                    return cards[0].Number + 23; // 24~33(10)
+                }
+                else if (cards[0].Number == 1) // 소프트
+                {
+                    return cards[1].Number + 13; // 15 ~ 23(9)
+                }
+                else if (cards[1].Number == 1) // 소프트
+                {
+                    return cards[0].Number + 13;
+                }
+                else  //  하드
+                {
+                    return cards[0].Number + cards[1].Number - 5; // 0~14
+                }
             }
-            else if (cards[0].Number == 1) // 소프트
-            {
-                return cards[1].Number + 13; // 15 ~ 23(9)
-            }
-            else if (cards[1].Number == 1) // 소프트
-            {
-                return cards[0].Number + 13;
-            }
-            else  //  하드
-            {
-                return cards[0].Number + cards[1].Number - 5; // 0~14
+            else {
+                bool isSoft = false;
+                int total = 0;
+                foreach(var card in cards)
+                {
+                    total += card.Number;
+
+                    if (card.Number==1)
+                    {
+                        isSoft = true;
+                    }
+                }
+
+                if(total >= 21)
+                {
+                    Debug.LogError("should be excepted earlier");
+                    return -1;
+                }
+
+
+                if(!isSoft)//  하드
+                {
+                    if (total == 20)
+                        return 32;
+                    return (total-5); // 0~14
+                }
+                else // 소프트
+                {
+                    if (total > 11) // 하드
+                    {
+                        if(total==20)
+                        {
+                            return 32; // Double 10
+                        }
+                        return (total-5);
+                    }
+                    else // 소프트
+                    {
+                        return (total + 12); // 15 ~ 23(9)
+                    }
+                }
             }
         }
     }
@@ -185,11 +231,6 @@ public class PlayerHand : Hand {
     //아웃라인 하이라이트
     public void Highlight(float delay=0f)// 컨트롤러에서 시작할때, 플레이어에서 인덱스 넘길때 사용
     {
-        //if (isHighlightTimeAfter)
-        //{
-        //    Debug.Log("얼마나 주목받을라구 in Highlight() of PlayerHand");
-        //}
-
         isHighlightTimeAfter = true;
         currentHighlightTimeAfter = 0.0f;
         totalHighlightTimeAfter = delay;
@@ -204,18 +245,11 @@ public class PlayerHand : Hand {
 
     void CheckChoices(bool isFirstHand)
     {
-        bitChoices = 0;
+        bitChoices = (int)ChoiceKind.Stand;
 
-        if (Value < (HAND_VALUE)21)
+        if (Value < (HAND_VALUE)21 && !isSplitAce)
         {
-            // Hit
-            if (isSplitAce == false)
-            {
-                bitChoices |= (int)ChoiceKind.Hit;
-            }
-
-            // Stand
-            bitChoices |= (int)ChoiceKind.Stand;
+            bitChoices |= (int)ChoiceKind.Hit;
 
             if (cards.Count == 2)
             {
@@ -228,7 +262,7 @@ public class PlayerHand : Hand {
                     bitChoices |= (int)ChoiceKind.Split;
                 }
 
-                if (isFirstHand && isInsurance==false)
+                if (isFirstHand)
                 {
                     // Surrender
                     bitChoices |= (int)ChoiceKind.Surrender;

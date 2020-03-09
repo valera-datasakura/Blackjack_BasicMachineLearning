@@ -147,7 +147,7 @@ public class AI_Player : MonoBehaviour
         
         while (curHand_Idx < hands.Count)
         {
-            if (GetCurrentHand.CanChoose)
+            if (!GetCurrentHand.IsStopChoice)
             {
                 return true;
             }
