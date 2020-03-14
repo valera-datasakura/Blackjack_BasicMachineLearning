@@ -475,6 +475,10 @@ public class PlayController : MonoBehaviour {
                 }
 
             } while (aiOpponent.UpdateToNextHand());
+
+            if (player.GetCurrentHand.IsBlackjack || player.GetCurrentHand.IsSurrender)
+                return false;
+
             do
             {
                 if (player.GetCurrentHand.IsBurst == false)
